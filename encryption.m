@@ -1,4 +1,4 @@
-function [cip,NC,dnkey,max_x1,min_x1,index,X1,X2] = encryption(im,cover,key,kt)
+function [cip,NC,dnkey,max_x1,min_x1,index] = encryption(im,cover,key,kt)
 %ENCRYPTION2 此处显示有关此函数的摘要
 %   此处显示详细说明
 
@@ -7,10 +7,10 @@ function [cip,NC,dnkey,max_x1,min_x1,index,X1,X2] = encryption(im,cover,key,kt)
 % 根据kt提取出分解基与index—kt
 tem = load(strcat('tem/',kt , '_tem.mat'));
 tem = getfield(tem, 'tem2');
-b1=max(tem(:,1))-min(tem(:,1))+1;
-b2=max(tem(:,2))-min(tem(:,2))+1;
-b3=max(tem(:,3))-min(tem(:,3))+1;
-b4=max(tem(:,4))-min(tem(:,4))+1;
+b1=2*max(abs(tem(:,1)))+1;
+b2=2*max(abs(tem(:,2)))+1;
+b3=2*max(abs(tem(:,3)))+1;
+b4=2*max(abs(tem(:,4)))+1;
 deba = [b1,b2,b3,b4];  % 分解基
 
 tem(tem(:,1)<0,1) = tem(tem(:,1)<0,1) + b1;
@@ -21,10 +21,13 @@ index_kt = tem(:,1)*(b2*b3*b4) + tem(:,2)*(b3*b4) + tem(:,3)*b4 + tem(:,4);
 
 %   动态密钥生成
 dnkey = dkey( im,key );
-para=dnkey(1:10)';init=dnkey(11:20)';
+a=dnkey(1:10);init=dnkey(11:20);
+b=dnkey(21:29);c=dnkey(30:38);
+d=dnkey(39:47);e=dnkey(48:56);
 
 %  混沌序列生成
-[ Y ] = ND_IICM( init,para,m*n*k );
+AA = CCP( a,b,c,d,e );
+[ Y ] = CM_10D( init,AA,m*n*k );
 
 % tic
 %   压缩
@@ -32,22 +35,16 @@ r1 = Y(1,1:0.5*m*n*k);
 r2 = Y(2,1:0.5*m*n*k);
 [ X1,max_x1,min_x1 ] = compre( im,r1,r2,0.5 );
 
-% figure(1001)
-% imshow(uint8(X1))
-% 
-% figure(1002)
+% figure(1)
 % h=histogram(X1,256);
 % h.FaceColor = [0 0 0];
 % h.EdgeColor = 'g';
-% % % title('重组前')
+% % title('重组前')
 
 % 直方图重组
 [ X2,index ] = HRE( X1,index_kt );
 
-% figure(1003)
-% imshow(uint8(X2))
-
-% figure(1004)
+% figure(2)
 % h=histogram(X2,675);
 % h.FaceColor = [0 0 0];
 % h.EdgeColor = 'g';
@@ -55,23 +52,14 @@ r2 = Y(2,1:0.5*m*n*k);
 % bit置乱
 [ NC ] = bit_scram( X2,Y(3:6,:), 1, deba );
 
-% figure(1005)
-% imshow(uint8(NC))
-% 
-% figure(1006)
+% figure(3)
 % h=histogram(NC,675);
 % h.FaceColor = [0 0 0];
 % h.EdgeColor = 'g';
-
 % toc
 % tic
 % 嵌入
-if length(kt) == 3 && strcmp(kt, 'spa') % 空间域嵌入
-    [ cip ] = embed_spa( NC,cover,Y(7:10,:), deba );
-else  %变换域嵌入
-    [ cip ] = embed( NC,cover,Y(7:10,:), deba, kt );
-end
-
+[ cip ] = embed( NC,cover,Y(7:10,:), deba );
 % toc
 end
 
@@ -98,15 +86,21 @@ for i=1:32  % hex2dec只能到2^52，所以运用循环每8位来一次，也可以其他位数
     sha_sum = sha_sum + bin2dec(num2str(tem2));
 end
 
-para=[];init=[];
+a=[];b=[];c=[];init=[];
+d=x(1:9);e=x(248:256);
 for i = 1:10
-    para(i)= 20 +  (sha_sum/(256*32) + bin2dec(num2str(x((i-1)*8+1:i*8)))/256);
-    init(i)= mod((sha_sum/(256*32) + bin2dec(num2str(x((i-1)*8+81:i*8+80)))/256),0.9)+0.05;
+    a(i)=exp( (sha_sum/(256*32)+ bin2dec(num2str(x((i-1)*8+1:i*8)))/256) * 5 );
+    init(i)= (sha_sum/(256*32)+ bin2dec(num2str(x((i-1)*8+1:i*8)))/256) * sqrt(2);
+    if i<=9
+        b(i)= (sha_sum/(256*32)+ bin2dec(num2str(x((i-1)*8+1:i*8)))/256) ;
+        c(i)=int8( mod( bin2dec(num2str(x((i+22)*8+1:(i+23)*8))), i)+1 );
+    end
 end
 
-dnkey = [para,init];
+dnkey = [a,init,b,c,d,e];
 
 end
+
 function h = SHA(inp,meth)
 % HASH - Convert an input variable into a message digest using any of
 %        several common hash algorithms
@@ -187,20 +181,43 @@ h=lower(h(:)');
 
 end
 
+function [ A ] = CCP( a,b,c,d,e )
+%   混沌控制参数
+%   a为对角线元素N
+%  b其他元素N-1
+%  c控制b位置参数N-1个（1~I-1）
+%  d控制A1放到哪里（0，1）
+%  e控制b放到B中还是C中（0，1）
 
-function [ y ] = ND_IICM( init,para,L )
-%   IICM 
-%   此处显示详细说明
+N=length(a);
+A(1,1)=a(1);
+for i=2:N
+    if d(i-1)<0.5
+        A1=A; A2=a(i);
+        B=zeros(i-1,1); C=zeros(1,i-1);
+    else
+        A1=a(i); A2=A;
+        B=zeros(1,i-1); C=zeros(i-1,1);
+    end
+    if e(i-1)<0.5
+        C(c(i-1))=b(i-1);
+    else
+        B(c(i-1))=b(i-1);
+    end
+    A = [A1,B;
+         C,A2];
+end
+
+end
+function [ y ] = CM_10D( init,A,L )
+%   10维混沌映射
+%   init初值，A参数矩阵，L迭代次数
 
 y = [];
 y(:,1) = init;
 
-len = length(init);
-aa = circshift(1:len,1);
-bb = circshift(1:len,-1);
-
 for i=1:L+1000
-    y(:,i+1)=sqrt(1-y(:,i).^2).*sin(para ./ (y(aa,i).*y(bb,i)));
+    y(:,i+1)=mod(A * y(:,i) + pi,1);
 end
 
 y = y(:,1001:L+1000);
@@ -212,8 +229,8 @@ function [ X3,max_x3,min_x3 ] = compre( image,x1,y1,cr )
 %   COMPRE 此处显示有关此函数的摘要
 %   此处显示详细说明
 
-x = 1-2*mod(x1 * 10^4, 1);
-y = 1-2*mod(y1 * 10^4, 1);
+x = 1-2*mod(x1 * 10^2 + y1 * 10^2, 1);
+y = 1-2*mod(x1 * pi - y1 * exp(1), 1);
 
 [rows, columns, hight] = size(image);
 if hight == 1
@@ -238,13 +255,15 @@ function [ X3 ] = compre_gry( image,x,y,cr )
 [rows, columns] = size(image);
 X1 = dct2(image);
 
+x = x(1:int32(rows * cr * rows));
+y = y(1:int32(columns * cr *columns));
 R1 = reshape(x, [int16(rows * cr), rows]);
 R2 = reshape(y, [int16(columns * cr), columns]);
 
 % 优化测量矩阵
-R1(:, 1:uint16(cr * rows)) = R1(:, 1:uint16(cr * rows)) * 5000;
+R1(:, 1:uint16(cr * rows)) = R1(:, 1:uint16(cr * rows)) * 500;
 R1 = orth(R1')';
-R2(:, 1:uint16(cr * columns)) = R2(:, 1:uint16(cr * columns)) * 5000;
+R2(:, 1:uint16(cr * columns)) = R2(:, 1:uint16(cr * columns)) * 500;
 R2 = orth(R2')';
 
 X3 = R1 * X1 * R2';
@@ -258,7 +277,6 @@ function [ X,index ] = HRE( im,index_kt )
 [hist,~] = imhist(uint8(im));
 
 [~,index]= sort(hist,'descend');
-index = index-1;
 X = im;
 for i=1:256
     X(im==index(i))=index_kt(i);
@@ -398,7 +416,8 @@ NC = CA11*(b*c*d) + CH11*(c*d) + CV11*d + CD11;
 
 end
 
-function [ cip ] = embed_spa( im,cover,r,deba )
+
+function [ cip ] = embed( im,cover,r,deba )
 %   embed 自己的嵌入操作(小波变换域)
 %   此处显示详细说明
 
@@ -407,80 +426,9 @@ function [ cip ] = embed_spa( im,cover,r,deba )
 im = reshape(im,[1,m1*n1*k1]);
 
 a=deba(1);b=deba(2);c=deba(3);d=deba(4);
-
-% 置乱
-cover = scram( cover,r,2 );
-
-if k==1
-    CA = cover(1:m/2,1:n/2);
-    CH = cover(m/2+1:m,1:n/2);
-    CV = cover(1:m/2,n/2+1:n);
-    CD = cover(m/2+1:m,n/2+1:n);
-else
-    CA = [cover(1:m/2,1:n/2,1),cover(1:m/2,1:n/2,2),cover(1:m/2,1:n/2,3)];
-    CH = [cover(m/2+1:m,1:n/2,1),cover(m/2+1:m,1:n/2,2),cover(m/2+1:m,1:n/2,3)];
-    CV = [cover(1:m/2,n/2+1:n,1),cover(1:m/2,n/2+1:n,2),cover(1:m/2,n/2+1:n,3)];
-    CD = [cover(m/2+1:m,n/2+1:n,1),cover(m/2+1:m,n/2+1:n,2),cover(m/2+1:m,n/2+1:n,3)];
-end
-
-
-% 嵌入
-CA1 = reshape(CA,[1,int32(m/2*n/2*k)]);
-CH1 = reshape(CH,[1,int32(m/2*n/2*k)]);
-CV1 = reshape(CV,[1,int32(m/2*n/2*k)]);
-CD1 = reshape(CD,[1,int32(m/2*n/2*k)]);
-
-
-CA11 = floor(im/(b*c*d));
-CH11 = floor(mod(im,(b*c*d))/(c*d));
-CV11 = floor(mod(im,(c*d))/d);
-CD11 = mod(im,d);
-
-
-CA1(1:m1*n1*k1) = mod(CA11 + mod(CA1(1:m1*n1*k1),a), a) + floor(CA1(1:m1*n1*k1)/a)*a;
-CH1(1:m1*n1*k1) = mod(CH11 + mod(CH1(1:m1*n1*k1),b), b) + floor(CH1(1:m1*n1*k1)/b)*b;
-CV1(1:m1*n1*k1) = mod(CV11 + mod(CV1(1:m1*n1*k1),c), c) + floor(CV1(1:m1*n1*k1)/c)*c;
-CD1(1:m1*n1*k1) = mod(CD11 + mod(CD1(1:m1*n1*k1),d), d) + floor(CD1(1:m1*n1*k1)/d)*d;
-
-
-CA1 = reshape(CA1,[m/2,k*n/2]);
-CH1 = reshape(CH1,[m/2,k*n/2]);
-CV1 = reshape(CV1,[m/2,k*n/2]);
-CD1 = reshape(CD1,[m/2,k*n/2]);
-
-% 修改
-CA2 = correction(CA,CA1,a,1);
-CH2 = correction(CH,CH1,b,1);
-CV2 = correction(CV,CV1,c,1);
-CD2 = correction(CD,CD1,d,1);
-
-% 合并
-if k==3
-    CA2 = cat(3,CA2(:,1:n/2),CA2(:,n/2+1:2*n/2),CA2(:,2*n/2+1:3*n/2));
-    CH2 = cat(3,CH2(:,1:n/2),CH2(:,n/2+1:2*n/2),CH2(:,2*n/2+1:3*n/2));
-    CV2 = cat(3,CV2(:,1:n/2),CV2(:,n/2+1:2*n/2),CV2(:,2*n/2+1:3*n/2));
-    CD2 = cat(3,CD2(:,1:n/2),CD2(:,n/2+1:2*n/2),CD2(:,2*n/2+1:3*n/2));
-end
-
-cip = [CA2,CV2;CH2,CD2];
-
-% 反向置乱
-cip = dscram( cip,r,2 );
-
-end
-
-function [ cip ] = embed( im,cover,r,deba, kt )
-%   im输入图像，cover封面，r置乱控制序列，deba分解基，kt整数小波变换变换核
-%   cip密文
-
-[m, n, k] = size(cover);
-[m1,n1,k1] = size(im);
-im = reshape(im,[1,m1*n1*k1]);
-
-a=deba(1);b=deba(2);c=deba(3);d=deba(4);
 x = r(1,:);  y = r(2,:); z= r(3,:); w= r(4,:);
 
-% 修改封面
+% 修改封面 (整数小波才需要修改)
 max1=252;min1=3;
 cover(cover<min1)=min1;
 cover(cover>max1)=max1;
@@ -488,7 +436,7 @@ cover(cover>max1)=max1;
 % 提升的小波变换
 cover=double(cover);
 im=double(im);
-LS=liftwave(kt,'Int2Int');
+LS=liftwave('haar','Int2Int');
 if k==1
     [CA,CH,CV,CD]=lwt2(cover,LS);
 else
@@ -501,30 +449,11 @@ else
     CD = [CDr,CDg,CDb];
 end
 
-% figure(1011)
-% imshow(uint8(CA))
-% figure(1012)
-% imshow(uint8(CH))
-% figure(1013)
-% imshow(uint8(CV))
-% figure(1014)
-% imshow(uint8(CD))
-
-
 % 置乱
 CA = scram( CA,x,2 );
 CH = scram( CH,y,2 );
 CV = scram( CV,z,2 );
 CD = scram( CD,w,2 );
-
-% figure(1021)
-% imshow(uint8(CA))
-% figure(1022)
-% imshow(uint8(CH))
-% figure(1023)
-% imshow(uint8(CV))
-% figure(1024)
-% imshow(uint8(CD))
 
 
 % 嵌入
@@ -552,10 +481,10 @@ CV1 = reshape(CV1,[m/2,k*n/2]);
 CD1 = reshape(CD1,[m/2,k*n/2]);
 
 % 修改
-CA2 = correction(CA,CA1,a,0);
-CH2 = correction(CH,CH1,b,0);
-CV2 = correction(CV,CV1,c,0);
-CD2 = correction(CD,CD1,d,0);
+CA2 = correction(CA,CA1,a);
+CH2 = correction(CH,CH1,b);
+CV2 = correction(CV,CV1,c);
+CD2 = correction(CD,CD1,d);
 
 % 反向置乱
 CA2 = dscram( CA2,x,2 );
@@ -574,7 +503,7 @@ else
 end
 
 end
-function [ cip2 ] = correction( cover,cip,e,t )
+function [ cip2 ] = correction( cover,cip,e )
 %   CORRECTION 修正
 %   此处显示详细说明
 
@@ -582,16 +511,7 @@ tem = cip-cover;
 cip2 = cip;
 cip2(tem < -e/2) = cip(tem < -e/2) + e;
 cip2(tem > e/2) = cip(tem > e/2) - e;
-
-if t==1
-    % 整数嵌入需要注意不要超范围(空域才需要)
-    cip2(cip2 < 0) = cip(cip2 < 0);
-    cip2(cip2 > 255) = cip(cip2 > 255);
 end
-
-end
-
-
 
 
 
