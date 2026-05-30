@@ -1,16 +1,16 @@
 function [cip,NC,dnkey,max_x1,min_x1,index,X1,X2] = encryption(im,cover,key,kt,tem)
-%ENCRYPTION2 ´Ë´¦ÏÔÊ¾ÓĞ¹Ø´Ëº¯ÊıµÄÕªÒª
-%   ´Ë´¦ÏÔÊ¾ÏêÏ¸ËµÃ÷
+%ENCRYPTION2 æ­¤å¤„æ˜¾ç¤ºæœ‰å…³æ­¤å‡½æ•°çš„æ‘˜è¦
+%   æ­¤å¤„æ˜¾ç¤ºè¯¦ç»†è¯´æ˜
 
 [m,n,k]=size(im);
 [M,N,K]=size(cover);
 
-% ¸ù¾İktÌáÈ¡³ö·Ö½â»ùÓëindex¡ªkt
+% æ ¹æ®ktæå–å‡ºåˆ†è§£åŸºä¸indexâ€”kt
 b1=max(tem(:,1))-min(tem(:,1))+1;
 b2=max(tem(:,2))-min(tem(:,2))+1;
 b3=max(tem(:,3))-min(tem(:,3))+1;
 b4=max(tem(:,4))-min(tem(:,4))+1;
-deba = [b1,b2,b3,b4];  % ·Ö½â»ù
+deba = [b1,b2,b3,b4];  % åˆ†è§£åŸº
 
 tem(tem(:,1)<0,1) = tem(tem(:,1)<0,1) + b1;
 tem(tem(:,2)<0,2) = tem(tem(:,2)<0,2) + b2;
@@ -19,72 +19,42 @@ tem(tem(:,4)<0,4) = tem(tem(:,4)<0,4) + b4;
 index_kt = tem(:,1)*(b2*b3*b4) + tem(:,2)*(b3*b4) + tem(:,3)*b4 + tem(:,4);
 
 
-%   ¶¯Ì¬ÃÜÔ¿Éú³É
+%   åŠ¨æ€å¯†é’¥ç”Ÿæˆ
 dnkey = dkey( im,key );
 init=dnkey(1);para=dnkey(2:4)';
-
-%  »ìãçĞòÁĞÉú³ÉÓÃ100Î¬¶È(²¢ĞĞÔËĞĞÉÙµãÊ±¼ä)
+%  æ··æ²Œåºåˆ—ç”Ÿæˆç”¨100ç»´åº¦(å¹¶è¡Œè¿è¡Œå°‘ç‚¹æ—¶é—´)
 L = 0.5*k*(m^2+n^2) + 4*k*(m+n) + 8*K*(M+N);
 init_100 = logistic( init,para(1),200 );
 Y = ND_ICNTC( init_100,para(2:3),ceil(L/100) );
-Y = Y(:); %À­³ÉÒ»Î¬
+Y = Y(:); %æ‹‰æˆä¸€ç»´
 Y_com = Y(1:0.5*k*(m^2+n^2));
 Y_bitcra = reshape( Y(0.5*k*(m^2+n^2)+1:0.5*k*(m^2+n^2)+4*k*(m+n)), [4,k*(m+n)]);
 Y_emb = reshape( Y(0.5*k*(m^2+n^2)+4*k*(m+n)+1:0.5*k*(m^2+n^2)+4*k*(m+n)+8*K*(M+N)), [4,2*K*(M+N)]);
 
-tic
-%   Ñ¹Ëõ
+%   å‹ç¼©
 r1 = Y_com(1 : 0.5*m*m*k);
 r2 = Y_com(0.5*m*m*k+1 : 0.5*m*m*k+0.5*n*n*k);
 [ X1,max_x1,min_x1 ] = compre( im,r1,r2,0.5 );
 
-% figure(1001)
-% imshow(uint8(X1))
-% 
-% figure(1002)
-% h=histogram(X1,256);
-% h.FaceColor = [0 0 0];
-% h.EdgeColor = 'g';
-% % % title('ÖØ×éÇ°')
-
-% Ö±·½Í¼ÖØ×é
+% ç›´æ–¹å›¾é‡ç»„
 [ X2,index ] = HRE( X1,index_kt );
 
-% figure(1003)
-% imshow(uint8(X2))
-% figure(1004)
-% h=histogram(X2,675);
-% h.FaceColor = [0 0 0];
-% h.EdgeColor = 'g';
-
-% bitÖÃÂÒ
+% bitç½®ä¹±
 [ NC ] = bit_scram( X2, Y_bitcra, 1, deba );
 
-% figure(1005)
-% imshow(uint8(NC))
-% 
-% figure(1006)
-% h=histogram(NC,675);
-% h.FaceColor = [0 0 0];
-% h.EdgeColor = 'g';
-
-toc
-tic
-% Ç¶Èë
-if length(kt) == 3 && strcmp(kt, 'spa') % ¿Õ¼äÓòÇ¶Èë
+% åµŒå…¥
+if length(kt) == 3 && strcmp(kt, 'spa') % ç©ºé—´åŸŸåµŒå…¥
     [ cip ] = embed_spa( NC,cover,Y_emb, deba );
-else  %±ä»»ÓòÇ¶Èë
+else  %å˜æ¢åŸŸåµŒå…¥
     [ cip ] = embed( NC,cover,Y_emb, deba, kt );
 end
-
-toc
 
 end
 
 
 function [ dnkey ] = dkey( p,key )
-%   DKEY ¶¯Ì¬ÃÜÔ¿Éú³É
-%   pÃ÷ÎÄ£¬key¶¯Ì¬ÃÜÔ¿ 
+%   DKEY åŠ¨æ€å¯†é’¥ç”Ÿæˆ
+%   pæ˜æ–‡ï¼ŒkeyåŠ¨æ€å¯†é’¥ 
 
 x = ones(1,256);
 sha_sum = 0;
@@ -92,7 +62,7 @@ time = clock;
 sha_time = SHA(time,'SHA-256');
 % sha_time='825ab8b35340fce4440825ad5d62a0e75dacb0858944163d04c1d02b73e36971';
 sha_p = SHA(p,'SHA-256');
-for i=1:32  % hex2decÖ»ÄÜµ½2^52£¬ËùÒÔÔËÓÃÑ­»·Ã¿8Î»À´Ò»´Î£¬Ò²¿ÉÒÔÆäËûÎ»Êı
+for i=1:32  % hex2decåªèƒ½åˆ°2^52ï¼Œæ‰€ä»¥è¿ç”¨å¾ªç¯æ¯8ä½æ¥ä¸€æ¬¡ï¼Œä¹Ÿå¯ä»¥å…¶ä»–ä½æ•°
     tem = ones(1,8);
     tem2 = ones(1,8);
     sn = dec2bin(hex2dec(sha_p((i-1)*2+1:(i-1)*2+2)),8);
@@ -194,7 +164,7 @@ end
 
 function [ y ] = logistic( init,para,L )
 %   IICM 
-%   ´Ë´¦ÏÔÊ¾ÏêÏ¸ËµÃ÷
+%   æ­¤å¤„æ˜¾ç¤ºè¯¦ç»†è¯´æ˜
 
 y = [];
 y(1) = init;
@@ -209,7 +179,7 @@ end
 
 function [ y ] = ND_ICNTC( init,para,L )
 %   IICM 
-%   ´Ë´¦ÏÔÊ¾ÏêÏ¸ËµÃ÷
+%   æ­¤å¤„æ˜¾ç¤ºè¯¦ç»†è¯´æ˜
 
 len = length(init);
 miu1=para(1);miu2=para(2);
@@ -230,8 +200,8 @@ end
 
 
 function [ X3,max_x3,min_x3 ] = compre( image,x1,y1,cr )
-%   COMPRE ´Ë´¦ÏÔÊ¾ÓĞ¹Ø´Ëº¯ÊıµÄÕªÒª
-%   ´Ë´¦ÏÔÊ¾ÏêÏ¸ËµÃ÷
+%   COMPRE æ­¤å¤„æ˜¾ç¤ºæœ‰å…³æ­¤å‡½æ•°çš„æ‘˜è¦
+%   æ­¤å¤„æ˜¾ç¤ºè¯¦ç»†è¯´æ˜
 
 x = 1-2*mod(x1 * 10^4, 1);
 y = 1-2*mod(y1 * 10^4, 1);
@@ -253,8 +223,8 @@ X3 = round((X3 - min_x3) / (max_x3 - min_x3) * 255);
 
 end
 function [ X3 ] = compre_gry( image,x,y,cr )
-%   COMPRE ´Ë´¦ÏÔÊ¾ÓĞ¹Ø´Ëº¯ÊıµÄÕªÒª
-%   ´Ë´¦ÏÔÊ¾ÏêÏ¸ËµÃ÷
+%   COMPRE æ­¤å¤„æ˜¾ç¤ºæœ‰å…³æ­¤å‡½æ•°çš„æ‘˜è¦
+%   æ­¤å¤„æ˜¾ç¤ºè¯¦ç»†è¯´æ˜
 
 [rows, columns] = size(image);
 X1 = dct2(image);
@@ -262,7 +232,7 @@ X1 = dct2(image);
 R1 = reshape(x, [int16(rows * cr), rows]);
 R2 = reshape(y, [int16(columns * cr), columns]);
 
-% ÓÅ»¯²âÁ¿¾ØÕó
+% ä¼˜åŒ–æµ‹é‡çŸ©é˜µ
 R1(:, 1:uint16(cr * rows)) = R1(:, 1:uint16(cr * rows)) * 5000;
 R1 = orth(R1')';
 R2(:, 1:uint16(cr * columns)) = R2(:, 1:uint16(cr * columns)) * 5000;
@@ -274,7 +244,7 @@ end
 
 
 function [ X,index ] = HRE( im,index_kt )
-%   Ö±·½Í¼ÖØ×é
+%   ç›´æ–¹å›¾é‡ç»„
 
 [hist,~] = imhist(uint8(im));
 
@@ -286,14 +256,14 @@ for i=1:256
 end
 % figure(2)
 % histogram(X,525)
-% title('ÖØ×éºó')
+% title('é‡ç»„å')
 
 end
 
 
 function [ cip ] = scram( im,r,type )
-%   SCRAM ÂÒĞòÑ­»·ÒÆÎ»
-%   ´Ë´¦ÏÔÊ¾ÏêÏ¸ËµÃ÷
+%   SCRAM ä¹±åºå¾ªç¯ç§»ä½
+%   æ­¤å¤„æ˜¾ç¤ºè¯¦ç»†è¯´æ˜
 
 [m1,n1,k1]=size(im);
 m=m1; n=k1*n1;
@@ -346,8 +316,8 @@ cip = reshape(cip,[m1,n1,k1]);
 
 end
 function [ rim ] = dscram( cip,r,type )
-%   DSCRAM ½âÃÜ
-%   ´Ë´¦ÏÔÊ¾ÏêÏ¸ËµÃ÷
+%   DSCRAM è§£å¯†
+%   æ­¤å¤„æ˜¾ç¤ºè¯¦ç»†è¯´æ˜
 
 [m1,n1,k1]=size(cip);
 m=m1; n=k1*n1;
@@ -397,8 +367,8 @@ end
 rim = reshape(rim,[m1,n1,k1]);
 end
 function [ NC ] = bit_scram( im,r,type,deba )
-%   SCRAM ÂÒĞòÑ­»·ÒÆÎ»
-%   ´Ë´¦ÏÔÊ¾ÏêÏ¸ËµÃ÷
+%   SCRAM ä¹±åºå¾ªç¯ç§»ä½
+%   æ­¤å¤„æ˜¾ç¤ºè¯¦ç»†è¯´æ˜
 a=deba(1);b=deba(2);c=deba(3);d=deba(4); 
 CA11 = floor(im/(b*c*d));
 CH11 = floor(mod(im,(b*c*d))/(c*d));
@@ -420,8 +390,8 @@ NC = CA11*(b*c*d) + CH11*(c*d) + CV11*d + CD11;
 end
 
 function [ cip ] = embed_spa( im,cover,r,deba )
-%   embed ×Ô¼ºµÄÇ¶Èë²Ù×÷(Ğ¡²¨±ä»»Óò)
-%   ´Ë´¦ÏÔÊ¾ÏêÏ¸ËµÃ÷
+%   embed è‡ªå·±çš„åµŒå…¥æ“ä½œ(å°æ³¢å˜æ¢åŸŸ)
+%   æ­¤å¤„æ˜¾ç¤ºè¯¦ç»†è¯´æ˜
 
 [m, n, k] = size(cover);
 [m1,n1,k1] = size(im);
@@ -429,7 +399,7 @@ im = reshape(im,[1,m1*n1*k1]);
 
 a=deba(1);b=deba(2);c=deba(3);d=deba(4);
 
-% ÖÃÂÒ
+% ç½®ä¹±
 cover = scram( cover,r,2 );
 
 if k==1
@@ -445,7 +415,7 @@ else
 end
 
 
-% Ç¶Èë
+% åµŒå…¥
 CA1 = reshape(CA,[1,int32(m/2*n/2*k)]);
 CH1 = reshape(CH,[1,int32(m/2*n/2*k)]);
 CV1 = reshape(CV,[1,int32(m/2*n/2*k)]);
@@ -469,13 +439,13 @@ CH1 = reshape(CH1,[m/2,k*n/2]);
 CV1 = reshape(CV1,[m/2,k*n/2]);
 CD1 = reshape(CD1,[m/2,k*n/2]);
 
-% ĞŞ¸Ä
+% ä¿®æ”¹
 CA2 = correction(CA,CA1,a,1);
 CH2 = correction(CH,CH1,b,1);
 CV2 = correction(CV,CV1,c,1);
 CD2 = correction(CD,CD1,d,1);
 
-% ºÏ²¢
+% åˆå¹¶
 if k==3
     CA2 = cat(3,CA2(:,1:n/2),CA2(:,n/2+1:2*n/2),CA2(:,2*n/2+1:3*n/2));
     CH2 = cat(3,CH2(:,1:n/2),CH2(:,n/2+1:2*n/2),CH2(:,2*n/2+1:3*n/2));
@@ -485,14 +455,14 @@ end
 
 cip = [CA2,CV2;CH2,CD2];
 
-% ·´ÏòÖÃÂÒ
+% åå‘ç½®ä¹±
 cip = dscram( cip,r,2 );
 
 end
 
 function [ cip ] = embed( im,cover,r,deba, kt )
-%   imÊäÈëÍ¼Ïñ£¬cover·âÃæ£¬rÖÃÂÒ¿ØÖÆĞòÁĞ£¬deba·Ö½â»ù£¬ktÕûÊıĞ¡²¨±ä»»±ä»»ºË
-%   cipÃÜÎÄ
+%   imè¾“å…¥å›¾åƒï¼Œcoverå°é¢ï¼Œrç½®ä¹±æ§åˆ¶åºåˆ—ï¼Œdebaåˆ†è§£åŸºï¼Œktæ•´æ•°å°æ³¢å˜æ¢å˜æ¢æ ¸
+%   cipå¯†æ–‡
 
 [m, n, k] = size(cover);
 [m1,n1,k1] = size(im);
@@ -501,12 +471,12 @@ im = reshape(im,[1,m1*n1*k1]);
 a=deba(1);b=deba(2);c=deba(3);d=deba(4);
 x = r(1,:);  y = r(2,:); z= r(3,:); w= r(4,:);
 
-% ĞŞ¸Ä·âÃæ
+% ä¿®æ”¹å°é¢
 max1=252;min1=3;
 cover(cover<min1)=min1;
 cover(cover>max1)=max1;
 
-% ÌáÉıµÄĞ¡²¨±ä»»
+% æå‡çš„å°æ³¢å˜æ¢
 cover=double(cover);
 im=double(im);
 LS=liftwave(kt,'Int2Int');
@@ -532,7 +502,7 @@ end
 % imshow(uint8(CD))
 
 
-% ÖÃÂÒ
+% ç½®ä¹±
 CA = scram( CA,x,2 );
 CH = scram( CH,y,2 );
 CV = scram( CV,z,2 );
@@ -548,7 +518,7 @@ CD = scram( CD,w,2 );
 % imshow(uint8(CD))
 
 
-% Ç¶Èë
+% åµŒå…¥
 CA1 = reshape(CA,[1,int32(m/2*n/2*k)]);
 CH1 = reshape(CH,[1,int32(m/2*n/2*k)]);
 CV1 = reshape(CV,[1,int32(m/2*n/2*k)]);
@@ -572,19 +542,19 @@ CH1 = reshape(CH1,[m/2,k*n/2]);
 CV1 = reshape(CV1,[m/2,k*n/2]);
 CD1 = reshape(CD1,[m/2,k*n/2]);
 
-% ĞŞ¸Ä
+% ä¿®æ”¹
 CA2 = correction(CA,CA1,a,0);
 CH2 = correction(CH,CH1,b,0);
 CV2 = correction(CV,CV1,c,0);
 CD2 = correction(CD,CD1,d,0);
 
-% ·´ÏòÖÃÂÒ
+% åå‘ç½®ä¹±
 CA2 = dscram( CA2,x,2 );
 CH2 = dscram( CH2,y,2 );
 CV2 = dscram( CV2,z,2 );
 CD2 = dscram( CD2,w,2 );
 
-% ºÏ²¢
+% åˆå¹¶
 if k==1
     cip = ilwt2(CA2,CH2,CV2,CD2,LS);
 else
@@ -596,8 +566,8 @@ end
 
 end
 function [ cip2 ] = correction( cover,cip,e,t )
-%   CORRECTION ĞŞÕı
-%   ´Ë´¦ÏÔÊ¾ÏêÏ¸ËµÃ÷
+%   CORRECTION ä¿®æ­£
+%   æ­¤å¤„æ˜¾ç¤ºè¯¦ç»†è¯´æ˜
 
 tem = cip-cover;
 cip2 = cip;
@@ -605,7 +575,7 @@ cip2(tem < -e/2) = cip(tem < -e/2) + e;
 cip2(tem > e/2) = cip(tem > e/2) - e;
 
 if t==1
-    % ÕûÊıÇ¶ÈëĞèÒª×¢Òâ²»Òª³¬·¶Î§(¿ÕÓò²ÅĞèÒª)
+    % æ•´æ•°åµŒå…¥éœ€è¦æ³¨æ„ä¸è¦è¶…èŒƒå›´(ç©ºåŸŸæ‰éœ€è¦)
     cip2(cip2 < 0) = cip(cip2 < 0);
     cip2(cip2 > 255) = cip(cip2 > 255);
 end
