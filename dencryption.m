@@ -1,16 +1,16 @@
 function [rim,RNC,RX2,RX1] = dencryption(cip,cover,dnkey,kt,max_x1,min_x1,index,tem, im_size)
-%DENCRYPTION ´Ë´¦ÏÔÊ¾ÓĞ¹Ø´Ëº¯ÊıµÄÕªÒª
-%   ´Ë´¦ÏÔÊ¾ÏêÏ¸ËµÃ÷
+%DENCRYPTION æ­¤å¤„æ˜¾ç¤ºæœ‰å…³æ­¤å‡½æ•°çš„æ‘˜è¦
+%   æ­¤å¤„æ˜¾ç¤ºè¯¦ç»†è¯´æ˜
 
 m=im_size(1);n=im_size(2);k=im_size(3);
 [M,N,K]=size(cover);
 
-% ¸ù¾İktÌáÈ¡³ö·Ö½â»ùÓëindex¡ªkt
+% æ ¹æ®ktæå–å‡ºåˆ†è§£åŸºä¸indexâ€”kt
 b1=max(tem(:,1))-min(tem(:,1))+1;
 b2=max(tem(:,2))-min(tem(:,2))+1;
 b3=max(tem(:,3))-min(tem(:,3))+1;
 b4=max(tem(:,4))-min(tem(:,4))+1;
-deba = [b1,b2,b3,b4];  % ·Ö½â»ù
+deba = [b1,b2,b3,b4];  % åˆ†è§£åŸº
 
 tem(tem(:,1)<0,1) = tem(tem(:,1)<0,1) + b1;
 tem(tem(:,2)<0,2) = tem(tem(:,2)<0,2) + b2;
@@ -18,45 +18,44 @@ tem(tem(:,3)<0,3) = tem(tem(:,3)<0,3) + b3;
 tem(tem(:,4)<0,4) = tem(tem(:,4)<0,4) + b4;
 index_kt = tem(:,1)*(b2*b3*b4) + tem(:,2)*(b3*b4) + tem(:,3)*b4 + tem(:,4);
 
-%  ÃÜÔ¿
-%   ¶¯Ì¬ÃÜÔ¿Éú³É
+%  å¯†é’¥
+%   åŠ¨æ€å¯†é’¥ç”Ÿæˆ
 init=dnkey(1);para=dnkey(2:4)';
 
-%  »ìãçĞòÁĞÉú³ÉÓÃ100Î¬¶È(²¢ĞĞÔËĞĞÉÙµãÊ±¼ä)
+%  æ··æ²Œåºåˆ—ç”Ÿæˆç”¨100ç»´åº¦(å¹¶è¡Œè¿è¡Œå°‘ç‚¹æ—¶é—´)
 L = 0.5*k*(m^2+n^2) + 4*k*(m+n) + 8*K*(M+N);
 init_100 = logistic( init,para(1),200 );
 Y = ND_ICNTC( init_100,para(2:3),ceil(L/100) );
-Y = Y(:); %À­³ÉÒ»Î¬
+Y = Y(:); %æ‹‰æˆä¸€ç»´
 Y_com = Y(1:0.5*k*(m^2+n^2));
 Y_bitcra = reshape( Y(0.5*k*(m^2+n^2)+1:0.5*k*(m^2+n^2)+4*k*(m+n)), [4,k*(m+n)]);
 Y_emb = reshape( Y(0.5*k*(m^2+n^2)+4*k*(m+n)+1:0.5*k*(m^2+n^2)+4*k*(m+n)+8*K*(M+N)), [4,2*K*(M+N)]);
 
-tic
-% ÌáÈ¡
+
+% æå–
 if length(kt) == 3 && strcmp(kt, 'spa')
     RNC = extract_spa( cip,cover,Y_emb,[m/2,n/2,k],deba );
 else
     RNC = extract( cip,cover,Y_emb,[m/2,n/2,k],deba, kt );
 end
-toc
-tic
-%·´ÏòbitÖÃÂÒ
+
+%åå‘bitç½®ä¹±
 RX2 = bit_dscram( RNC,Y_bitcra,1,deba );
 
-% Ö±·½Í¼·´ÏòÖØ×é
+% ç›´æ–¹å›¾åå‘é‡ç»„
 RX1 = HRRE( RX2,index,index_kt );
 
-% ÖØ½¨
+% é‡å»º
 r1 = Y_com(1 : 0.5*m*m*k);
 r2 = Y_com(0.5*m*m*k+1 : 0.5*m*m*k+0.5*n*n*k);
 rim=refact( RX1,r1,r2,0.5,max_x1, min_x1 );
-toc
+
 end
 
 
 function [ y ] = logistic( init,para,L )
 %   IICM 
-%   ´Ë´¦ÏÔÊ¾ÏêÏ¸ËµÃ÷
+%   æ­¤å¤„æ˜¾ç¤ºè¯¦ç»†è¯´æ˜
 
 y = [];
 y(1) = init;
@@ -70,7 +69,7 @@ y = y(101:L+100);
 end
 function [ y ] = ND_ICNTC( init,para,L )
 %   IICM 
-%   ´Ë´¦ÏÔÊ¾ÏêÏ¸ËµÃ÷
+%   æ­¤å¤„æ˜¾ç¤ºè¯¦ç»†è¯´æ˜
 
 len = length(init);
 miu1=para(1);miu2=para(2);
@@ -89,8 +88,8 @@ y = y(:,101:L+100);
 end
 
 function [ rim ] = refact( image,x1,y1,cr,max_x3, min_x3 )
-%   REFACT ´Ë´¦ÏÔÊ¾ÓĞ¹Ø´Ëº¯ÊıµÄÕªÒª
-%   ´Ë´¦ÏÔÊ¾ÏêÏ¸ËµÃ÷
+%   REFACT æ­¤å¤„æ˜¾ç¤ºæœ‰å…³æ­¤å‡½æ•°çš„æ‘˜è¦
+%   æ­¤å¤„æ˜¾ç¤ºè¯¦ç»†è¯´æ˜
 
 x = 1-2*mod(x1 * 10^4, 1);
 y = 1-2*mod(y1 * 10^4, 1);
@@ -111,8 +110,8 @@ end
 
 end
 function [ rim ] = refact_gry( image,x,y,cr )
-%   REFACT ´Ë´¦ÏÔÊ¾ÓĞ¹Ø´Ëº¯ÊıµÄÕªÒª
-%   ´Ë´¦ÏÔÊ¾ÏêÏ¸ËµÃ÷
+%   REFACT æ­¤å¤„æ˜¾ç¤ºæœ‰å…³æ­¤å‡½æ•°çš„æ‘˜è¦
+%   æ­¤å¤„æ˜¾ç¤ºè¯¦ç»†è¯´æ˜
 
 X3 = image;
 
@@ -123,13 +122,13 @@ columns = n/cr;
 R1 = reshape(x, [int16(rows * cr), rows]);
 R2 = reshape(y, [int16(columns * cr), columns]);
 
-% ÓÅ»¯²âÁ¿¾ØÕó
+% ä¼˜åŒ–æµ‹é‡çŸ©é˜µ
 R1(:, 1:int16(cr * rows)) = R1(:, 1:int16(cr * rows)) * 5000;
 R1 = orth(R1')';
 R2(:, 1:int16(cr * columns)) = R2(:, 1:int16(cr * columns)) * 5000;
 R2 = orth(R2');
 
-% ÖØ¹¹
+% é‡æ„
 [ rec ] = nsl0_2d(X3, R1, R2);
 
 rim = idct2(rec);
@@ -137,8 +136,8 @@ rim = double(uint8(rim));
 
 end
 function [ rim ] = nsl0_2d( y,A,B )
-%   NSL0_2D ´Ë´¦ÏÔÊ¾ÓĞ¹Ø´Ëº¯ÊıµÄÕªÒª
-%   ´Ë´¦ÏÔÊ¾ÏêÏ¸ËµÃ÷
+%   NSL0_2D æ­¤å¤„æ˜¾ç¤ºæœ‰å…³æ­¤å‡½æ•°çš„æ‘˜è¦
+%   æ­¤å¤„æ˜¾ç¤ºè¯¦ç»†è¯´æ˜
 
 sigma_min = 0.01;
 sigma_decrease_factor = 0.05;  
@@ -174,7 +173,7 @@ end
 
 
 function [ rim ] = HRRE( X,index,index_kt )
-%   ·´ÏòÖ±·½Í¼ÖØ×é
+%   åå‘ç›´æ–¹å›¾é‡ç»„
 
 rim = zeros(size(X));
 for i=1:256
@@ -185,8 +184,8 @@ end
 
 
 function [ cip ] = scram( im,r,type )
-%   SCRAM ÂÒĞòÑ­»·ÒÆÎ»
-%   ´Ë´¦ÏÔÊ¾ÏêÏ¸ËµÃ÷
+%   SCRAM ä¹±åºå¾ªç¯ç§»ä½
+%   æ­¤å¤„æ˜¾ç¤ºè¯¦ç»†è¯´æ˜
 
 [m1,n1,k1]=size(im);
 m=m1; n=k1*n1;
@@ -239,8 +238,8 @@ cip = reshape(cip,[m1,n1,k1]);
 
 end
 function [ rim ] = dscram( cip,r,type )
-%   DSCRAM ½âÃÜ
-%   ´Ë´¦ÏÔÊ¾ÏêÏ¸ËµÃ÷
+%   DSCRAM è§£å¯†
+%   æ­¤å¤„æ˜¾ç¤ºè¯¦ç»†è¯´æ˜
 
 [m1,n1,k1]=size(cip);
 m=m1; n=k1*n1;
@@ -290,8 +289,8 @@ end
 rim = reshape(rim,[m1,n1,k1]);
 end
 function [ rim ] = bit_dscram( NC,r,type,deba )
-%   SCRAM ÂÒĞòÑ­»·ÒÆÎ»
-%   ´Ë´¦ÏÔÊ¾ÏêÏ¸ËµÃ÷
+%   SCRAM ä¹±åºå¾ªç¯ç§»ä½
+%   æ­¤å¤„æ˜¾ç¤ºè¯¦ç»†è¯´æ˜
 a=deba(1);b=deba(2);c=deba(3);d=deba(4); 
 
 CA11 = floor(NC/(b*c*d));
@@ -315,8 +314,8 @@ end
 
 
 function [ rim ] = extract( cip,cover,r,im_shape,deba,kt )
-%   EXTRACT ×Ô¼ºµÄÇ¶Èë²Ù×÷(Ğ¡²¨±ä»»Óò)
-%   ´Ë´¦ÏÔÊ¾ÏêÏ¸ËµÃ÷
+%   EXTRACT è‡ªå·±çš„åµŒå…¥æ“ä½œ(å°æ³¢å˜æ¢åŸŸ)
+%   æ­¤å¤„æ˜¾ç¤ºè¯¦ç»†è¯´æ˜
 
 m1=im_shape(1); n1=im_shape(2);k1=im_shape(3);
 [m,n,k] = size(cip);
@@ -324,12 +323,12 @@ m1=im_shape(1); n1=im_shape(2);k1=im_shape(3);
 a=deba(1);b=deba(2);c=deba(3);d=deba(4); 
 x = r(1,:);  y = r(2,:); z= r(3,:); w= r(4,:);
 
-% ĞŞ¸Ä·âÃæ (ÕûÊıĞ¡²¨²ÅĞèÒªĞŞ¸Ä)
+% ä¿®æ”¹å°é¢ (æ•´æ•°å°æ³¢æ‰éœ€è¦ä¿®æ”¹)
 max1=252;min1=3;
 cover(cover<min1)=min1;
 cover(cover>max1)=max1;
 
-% ÌáÉıµÄĞ¡²¨±ä»»
+% æå‡çš„å°æ³¢å˜æ¢
 LS=liftwave(kt,'Int2Int');
 cip=double(cip);
 cover=double(cover);
@@ -353,7 +352,7 @@ else
     CV31 = cat(3,CV31r,CV31g,CV31b);
     CD31 = cat(3,CD31r,CD31g,CD31b);
 end
-% ÖÃÂÒ
+% ç½®ä¹±
 CA3 = scram( CA3,x,2 );
 CH3 = scram( CH3,y,2 );
 CV3 = scram( CV3,z,2 );
@@ -376,14 +375,14 @@ rim = reshape(rim,[m1,n1,k1]);
 end
 
 function [ rim ] = extract_spa( cip,cover,r,im_shape,deba )
-%   EXTRACT ×Ô¼ºµÄÇ¶Èë²Ù×÷(Ğ¡²¨±ä»»Óò)
-%   ´Ë´¦ÏÔÊ¾ÏêÏ¸ËµÃ÷
+%   EXTRACT è‡ªå·±çš„åµŒå…¥æ“ä½œ(å°æ³¢å˜æ¢åŸŸ)
+%   æ­¤å¤„æ˜¾ç¤ºè¯¦ç»†è¯´æ˜
 
 m1=im_shape(1); n1=im_shape(2);k1=im_shape(3);
 [m,n,k] = size(cip);
 
 a=deba(1);b=deba(2);c=deba(3);d=deba(4); 
-% ÖÃÂÒ
+% ç½®ä¹±
 cip = scram( cip,r,2 );
 cover = scram( cover,r,2 );
 
