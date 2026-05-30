@@ -2,32 +2,32 @@ clc;close all;clear all
 
 %% 加解密图像展示
 % 灰度
-% % im = imread('E:\date\ccia_CVG_image\color_image_512/avion.ppm');
+% % im = imread('date/avion.ppm');
 % % im = double(rgb2gray(im));
-% % cover = imread('E:\date\ccia_CVG_image\color_image_512/sailboat.ppm');
+% % cover = imread('date/sailboat.ppm');
 % % cover = double(rgb2gray(cover));
 
 % 彩色
-im = double(imread('date/color_image_512/avion.ppm'));
-cover = double(imread('date/color_image_512/baboon.ppm'));
+im = double(imread('date/avion.ppm'));
+cover = double(imread('date/baboon.ppm'));
 
 % 封面彩色，明文灰度
-% im = imread('date/color_image_512/peppers.ppm');
+% im = imread('date/peppers.ppm');
 % im = double(rgb2gray(im));
-% cover = double(imread('date/color_image_512/portofino.ppm'));
+% cover = double(imread('date/portofino.ppm'));
 
 % 封面灰度，明文彩色
-% im = imread('date/color_image_512/raiz1.ppm');
+% im = imread('date/raiz1.ppm');
 % im = double(imresize(im,[256,256]));
-% cover = imread('date/color_image_512/sailboat.ppm');
+% cover = imread('date/sailboat.ppm');
 % cover = double(rgb2gray(cover));
 
 im = double(im);
 cover=double(cover);
 
 key='8d5ab8ba5340fce4420829ad5d12a0e45dacb0858544163d04c1d02b73e3697d';
-kt='spa';   % spa空间域其余为变换域
-% kt='haar';   % spa空间域其余为变换域
+kt='spa';   % spa空间域
+% kt='haar';   % haar小波haar变换核域
 
 [m,n,k]=size(im);
 tem = load(strcat('tem/',kt , '_tem.mat'));
